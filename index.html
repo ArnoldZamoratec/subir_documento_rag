@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Enviar PDF a Drive — Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#071027;--card:#0b1220;--accent:#7c3aed;--muted:#94a3b8}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071027,#0b1220);color:#e6eef8;min-height:100vh;padding:28px}
+    .wrap{max-width:980px;margin:0 auto}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:18px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    h1{margin:0 0 8px}
+    .meta{color:var(--muted);font-size:0.95rem}
+    .btn{background:linear-gradient(90deg,var(--accent),#5b21b6);border:none;color:white;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+
+    .modal{width:100%;max-width:720px;background:#071026;padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);margin-top:18px}
+    .modal h2{margin:0 0 6px;font-size:1.125rem}
+    .hint{color:var(--muted);font-size:0.95rem;margin-bottom:12px}
+    label{display:block;color:var(--muted);font-size:0.9rem;margin-bottom:6px}
+    input[type=text], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:inherit}
+    .dropzone{border:2px dashed rgba(255,255,255,0.06);padding:16px;border-radius:10px;display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.01));}
+    .dropzone .info{flex:1;color:var(--muted)}
+    .filename{color:#dbeafe;font-weight:600}
+    .actions{display:flex;gap:10px;align-items:center;margin-top:14px}
+    .small{font-size:0.85rem;color:var(--muted)}
+    .status{display:inline-block;padding:6px 10px;border-radius:999px;background:#0a1728;color:#9dd6ff;font-weight:600}
+    .doc-list{margin-top:18px}
+    .doc-item{padding:12px;border-radius:8px;background:rgba(255,255,255,0.01);display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .progress{height:8px;background:#0b1220;border-radius:8px;overflow:hidden;margin-top:8px}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#5b21b6);width:0%}
+    @media (max-width:520px){.modal{padding:14px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h1>Expediente: EXP-2026-001 — Caso Pérez vs Compañía</h1>
+        <div class="meta">Demo: sección "Enviar PDF a Drive" integrada</div>
+      </div>
+      <div>
+        <a class="btn" href="#modal">Ir a Subida</a>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Vista rápida</h2>
+      <p class="meta">Ejemplo de modal integrado en la ficha de expediente. El demo simula la subida y estado del documento sin enviar nada al servidor.</p>
+
+      <div id="modal" class="modal" aria-labelledby="modalTitle" role="region">
+        <h2 id="modalTitle">Enviar PDF a Drive</h2>
+        <div class="hint">Selecciona un archivo PDF y asigna un nombre descriptivo.</div>
+
+        <form id="uploadForm">
+          <div>
+            <label for="docName">Nombre del documento</label>
+            <input id="docName" name="fileName" type="text" placeholder="Ej: Informe_Inicial" required>
+          </div>
+
+          <div style="margin-top:10px;">
+            <label>Archivo (PDF)</label>
+            <div class="dropzone" id="dropzone" tabindex="0">
+              <div class="info">
+                <div class="small">Arrastra tu PDF aquí o haz clic para seleccionar</div>
+                <div class="filename" id="fileNameDisplay">No hay archivo seleccionado</div>
+              </div>
+              <input type="file" id="fileInput" accept="application/pdf" style="display:none">
+            </div>
+            <div class="small" style="margin-top:8px">Máx. 20 MB • Formato permitido: <strong>PDF</strong></div>
+          </div>
+
+          <div class="actions">
+            <button class="btn" type="submit">Enviar al Drive</button>
+            <div style="margin-left:auto" id="formStatus"></div>
+          </div>
+
+        </form>
+
+        <div id="progressArea" style="margin-top:12px;display:none">
+          <div class="small">Estado: <span class="status" id="jobStatus">queued</span></div>
+          <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="card" style="margin-top:14px">
+      <h3>Documentos vinculados</h3>
+      <div class="doc-list" id="docList">
+        <div class="doc-item">No hay documentos aún.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const uploadForm = document.getElementById('uploadForm');
+    const formStatus = document.getElementById('formStatus');
+    const progressArea = document.getElementById('progressArea');
+    const jobStatus = document.getElementById('jobStatus');
+    const progressBar = document.getElementById('progressBar');
+    const docList = document.getElementById('docList');
+
+    dropzone.addEventListener('click', ()=> fileInput.click());
+    dropzone.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') fileInput.click(); });
+    dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.borderColor='rgba(124,58,237,0.8)'; });
+    dropzone.addEventListener('dragleave', e=>{ e.preventDefault(); dropzone.style.borderColor='rgba(255,255,255,0.06)'; });
+    dropzone.addEventListener('drop', e=>{ e.preventDefault(); dropzone.style.borderColor='rgba(255,255,255,0.06)'; const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f){ fileInput.files = e.dataTransfer.files; updateFileName(f); } });
+    fileInput.addEventListener('change', ()=> updateFileName(fileInput.files[0]));
+    function updateFileName(file){ if(!file) return fileNameDisplay.textContent='No hay archivo seleccionado'; fileNameDisplay.textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)'; }
+
+    uploadForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if(!file){ formStatus.textContent='Seleccione un archivo PDF.'; return; }
+      if(file.type !== 'application/pdf'){ formStatus.textContent='Formato inválido. Use PDF.'; return; }
+      if(file.size > 20 * 1024 * 1024){ formStatus.textContent='Archivo excede 20 MB.'; return; }
+
+      formStatus.textContent='Subida iniciada';
+      progressArea.style.display='block';
+      jobStatus.textContent='queued';
+      const jobId = 'job_' + Math.random().toString(36).slice(2,9);
+      setTimeout(()=> simulateProcessing(jobId,file),600);
+    });
+
+    function simulateProcessing(jobId,file){
+      jobStatus.textContent='processing';
+      let pct=0; progressBar.style.width='0%';
+      const interval = setInterval(()=>{
+        pct += Math.floor(Math.random()*12)+6;
+        if(pct>=100) pct=100;
+        progressBar.style.width = pct + '%';
+        if(pct===100){ clearInterval(interval); setTimeout(()=> finishJob(jobId,file),500); }
+      },400);
+    }
+
+    function finishJob(jobId,file){
+      jobStatus.textContent='completed';
+      formStatus.textContent='Subida completada';
+      const now = new Date();
+      const driveUrl = '#';
+      const item = document.createElement('div'); item.className='doc-item';
+      item.innerHTML = `<div><strong>${document.getElementById('docName').value || file.name}</strong><div class="small">${file.name} • ${Math.round(file.size/1024)} KB • ${now.toLocaleString()}</div></div><div><a href="${driveUrl}" class="small">Ver en Drive</a></div>`;
+      if(docList.children.length===1 && docList.children[0].textContent.includes('No hay documentos')) docList.innerHTML='';
+      docList.prepend(item);
+      setTimeout(()=>{ formStatus.textContent=''; progressArea.style.display='none'; progressBar.style.width='0%'; },1200);
+    }
+  </script>
+</body>
+</html>
