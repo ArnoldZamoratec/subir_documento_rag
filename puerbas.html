@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Subir PDF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root{
+        --bg:#0f1724;
+        --card:#0b1220;
+        --accent:#7c3aed;
+        --muted:#94a3b8;
+        --success:#10b981;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;min-height:100vh;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+        background:linear-gradient(180deg,#071020 0%, #0b1220 60%);
+        color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:32px;
+      }
+      .card{width:100%;max-width:760px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px;padding:28px;box-shadow:0 8px 30px rgba(2,6,23,0.6);}
+      header{display:flex;align-items:flex-start;gap:16px}
+      header h1{margin:0;font-size:1.5rem}
+      header p{margin:4px 0 0;color:var(--muted)}
+      form{margin-top:18px;display:grid;gap:14px}
+      label{font-size:0.9rem;color:var(--muted)}
+      input[type="text"]{width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:inherit}
+      .dropzone{border:2px dashed rgba(255,255,255,0.06);padding:22px;border-radius:10px;display:flex;align-items:center;gap:12px;cursor:pointer;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.01));}
+      .dropzone:hover{border-color:rgba(124,58,237,0.6);}
+      .dropzone .info{flex:1;color:var(--muted)}
+      .filename{font-weight:600;color:#dbeafe}
+      input[type=file]{display:none}
+      .actions{display:flex;gap:12px;align-items:center}
+      button{background:linear-gradient(90deg,var(--accent),#5b21b6);border:none;color:white;padding:10px 16px;border-radius:10px;font-weight:600;cursor:pointer}
+      button[disabled]{opacity:0.5;cursor:not-allowed}
+      .hint{font-size:0.85rem;color:var(--muted)}
+      footer{margin-top:12px;font-size:0.85rem;color:var(--muted)}
+      @media (max-width:520px){.card{padding:18px}header h1{font-size:1.25rem}}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <header>
+        <div>
+          <h1>Enviar PDF a Drive</h1>
+          <p>Selecciona un archivo PDF y asigna un nombre descriptivo.</p>
+        </div>
+      </header>
+
+      <form id="uploadForm" action="https://arnoldxddddd.app.n8n.cloud/webhook-test/a3a47935-6730-44ed-a458-725aa57e1177" method="POST" enctype="multipart/form-data">
+        <div>
+          <label for="nombre">Nombre del documento</label>
+          <input type="text" name="fileName" id="nombre" placeholder="Ej: Reporte_Mensual">
+        </div>
+
+        <div class="dropzone" id="dropzone" role="button" tabindex="0">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 3v10" stroke="#9ca3ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M8.5 7.5L12 4l3.5 3.5" stroke="#9ca3ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M21 15a3 3 0 0 0-3-3H7a4 4 0 1 0 0 8h11a3 3 0 0 0 3-3z" stroke="#9ca3ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          <div class="info">
+            <div class="hint">Arrastra tu PDF aquí o haz clic para seleccionar</div>
+            <div class="filename" id="fileNameDisplay">No hay archivo seleccionado</div>
+          </div>
+          <input type="file" name="data" id="archivo" accept=".pdf" required>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="submitBtn">Enviar al Drive</button>
+          <div class="hint">Formato permitido: <strong>PDF</strong></div>
+        </div>
+
+        <footer>Al enviar, el archivo se procesará y se guardará en el Drive vinculado.</footer>
+      </form>
+    </main>
+
+    <script>
+      const dropzone = document.getElementById('dropzone');
+      const inputFile = document.getElementById('archivo');
+      const fileNameDisplay = document.getElementById('fileNameDisplay');
+      const submitBtn = document.getElementById('submitBtn');
+
+      function updateFileName(file){
+        if(!file) return fileNameDisplay.textContent = 'No hay archivo seleccionado';
+        fileNameDisplay.textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+      }
+
+      dropzone.addEventListener('click', ()=> inputFile.click());
+      dropzone.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') inputFile.click(); });
+
+      dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.style.borderColor='rgba(124,58,237,0.8)'; });
+      dropzone.addEventListener('dragleave', e=>{ e.preventDefault(); dropzone.style.borderColor='rgba(255,255,255,0.06)'; });
+      dropzone.addEventListener('drop', e=>{
+        e.preventDefault();
+        dropzone.style.borderColor='rgba(255,255,255,0.06)';
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if(f){ inputFile.files = e.dataTransfer.files; updateFileName(f); }
+      });
+
+      inputFile.addEventListener('change', ()=> updateFileName(inputFile.files[0]));
+
+      // Small safety: prevent double submit while uploading
+      document.getElementById('uploadForm').addEventListener('submit', ()=>{
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
+      });
+    </script>
+  </body>
+</html>
